@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import {
   Clock, Calendar as CalendarIcon, Layout, Layers, Brain, Lightbulb,
-  Menu, Bell, X, Droplets, CheckSquare, Plus
+  Menu, Bell, X, Droplets, CheckSquare, Plus, User
 } from 'lucide-react';
+import confetti from 'canvas-confetti';
 
 import Timer from './components/Dashboard';
 import BrainDump from './components/BrainDump';
@@ -11,6 +12,8 @@ import IdeaVault from './components/IdeaVault';
 import DailyStack from './components/DailyStack';
 import KanbanBoard from './components/KanbanBoard';
 import CalendarView, { TaskModal } from './components/CalendarView';
+import Checklist from './components/Checklist';
+import Profile from './components/Profile';
 import { Toast, InputWithVoice } from './components/Shared';
 import { AudioEngine, sendNotification } from './utils/helpers';
 
@@ -26,7 +29,8 @@ const MobileNav = ({ activeTab, setActiveTab }) => {
         { id: 'calendar', icon: CalendarIcon, label: 'Plan' },
         { id: 'kanban', icon: Layout, label: 'Board' },
         { id: 'stack', icon: Layers, label: 'Stack' },
-        { id: 'dump', icon: Brain, label: 'Clear' },
+        { id: 'checklist', icon: CheckSquare, label: 'Tasks' },
+        { id: 'profile', icon: User, label: 'Me' },
       ].map(item => (
         <button key={item.id} onClick={() => setActiveTab(item.id)}
           className={`flex flex-col items-center justify-center p-2 rounded-lg transition-all ${activeTab === item.id ? 'text-indigo-400' : 'text-slate-500'}`}
@@ -39,7 +43,7 @@ const MobileNav = ({ activeTab, setActiveTab }) => {
   );
 };
 
-const WidgetsContent = ({ hydration, setHydration, quickTask, setQuickTask, addTask, tasks }) => (
+const WidgetsContent = ({ hydration, onDrink, quickTask, setQuickTask, addTask, tasks }) => (
   <>
     <div className="bg-gradient-to-br from-cyan-900 to-blue-900 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden group border border-blue-800/50">
       <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
@@ -49,7 +53,7 @@ const WidgetsContent = ({ hydration, setHydration, quickTask, setQuickTask, addT
         <span className="text-4xl font-bold font-mono">{hydration.count}</span>
         <span className="opacity-60 text-xs font-bold uppercase tracking-wider mb-1">/ {hydration.target} cups</span>
       </div>
-      <button onClick={() => setHydration({ ...hydration, count: hydration.count + 1 })} className="w-full bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 text-white font-bold py-2 rounded-lg relative z-10 flex items-center justify-center gap-2 text-sm uppercase tracking-wider transition-all">
+      <button onClick={onDrink} className="w-full bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 text-white font-bold py-2 rounded-lg relative z-10 flex items-center justify-center gap-2 text-sm uppercase tracking-wider transition-all">
         <Plus size={16} /> Drink Water
       </button>
     </div>
@@ -91,30 +95,45 @@ const App = () => {
   const [dumps, setDumps] = useState([]);
   const [ideas, setIdeas] = useState([]);
   const [pomodoroStats, setPomodoroStats] = useState(0);
+  const [pomodoroHistory, setPomodoroHistory] = useState([]);
   const [hydration, setHydrationState] = useState({ count: 0, target: 8 });
+  const [checklistItems, setChecklistItems] = useState([]);
+  const [userProfile, setUserProfile] = useState({});
   const [toast, setToast] = useState(null);
   const [quickTask, setQuickTask] = useState("");
   const [editingTask, setEditingTask] = useState(null);
   const [showMobileWidgets, setShowMobileWidgets] = useState(false);
 
+  // Refresh Checklist on tab switch (triggers auto-cleanup of old items)
+  useEffect(() => {
+    if (activeTab === 'checklist') {
+      axios.get('/checklist').then(res => setChecklistItems(res.data)).catch(console.error);
+    }
+  }, [activeTab]);
+
   // --- Initial Data Fetching ---
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [tasksRes, logsRes, dumpsRes, ideasRes, statsRes] = await Promise.all([
+        const [tasksRes, logsRes, dumpsRes, ideasRes, statsRes, checkRes, profileRes] = await Promise.all([
           axios.get('/tasks'),
           axios.get('/logs'),
           axios.get('/dumps'),
           axios.get('/ideas'),
-          axios.get('/stats')
+          axios.get('/stats'),
+          axios.get('/checklist'),
+          axios.get('/profile')
         ]);
         setTasks(tasksRes.data);
         setLogs(logsRes.data);
         setDumps(dumpsRes.data);
         setIdeas(ideasRes.data);
+        setChecklistItems(checkRes.data);
+        setUserProfile(profileRes.data);
         if (statsRes.data) {
           setHydrationState({ count: statsRes.data.hydrationCount, target: statsRes.data.hydrationTarget });
           setPomodoroStats(statsRes.data.pomodoros);
+          setPomodoroHistory(statsRes.data.pomodoroHistory || []);
         }
       } catch (err) {
         console.error("Error fetching data", err);
@@ -123,31 +142,88 @@ const App = () => {
     };
     fetchData();
     document.documentElement.classList.add('dark');
+
+    // Periodic sync with backend (every 30 seconds)
+    // This ensures UI reflects manual database changes
+    const syncInterval = setInterval(async () => {
+      try {
+        const statsRes = await axios.get('/stats');
+        if (statsRes.data) {
+          setHydrationState({ count: statsRes.data.hydrationCount, target: statsRes.data.hydrationTarget });
+          setPomodoroStats(statsRes.data.pomodoros);
+          setPomodoroHistory(statsRes.data.pomodoroHistory || []);
+        }
+      } catch (err) {
+        console.error("Error syncing stats", err);
+      }
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(syncInterval);
   }, []);
 
   // --- CRUD Operations Wrapper ---
 
   // Hydration & Stats Sync
-  const setHydration = async (newState) => {
-    setHydrationState(newState);
+  const drinkWater = async () => {
+    // Don't allow clicking if already at target
+    if (hydration.count >= hydration.target) {
+      setToast({ message: "🎯 Daily goal already reached!" });
+      return;
+    }
+
     try {
-      await axios.put('/stats', {
-        hydrationCount: newState.count,
-        hydrationTarget: newState.target,
-        pomodoros: pomodoroStats // Sync pomodoro too
+      const res = await axios.post('/stats/water');
+      const newCount = res.data.hydrationCount;
+      const target = res.data.hydrationTarget;
+      const oldCount = hydration.count;
+
+      // Always sync with backend response
+      setHydrationState({ count: newCount, target: target });
+
+      // Trigger confetti when hitting the target (first time)
+      if (newCount === target && oldCount < target) {
+        setTimeout(() => {
+          confetti({
+            particleCount: 150,
+            spread: 90,
+            origin: { y: 0.6 },
+            colors: ['#60a5fa', '#3b82f6', '#2563eb', '#1d4ed8'],
+            zIndex: 10000
+          });
+          setToast({ message: "🎉 Hydration Goal Reached! Great job!" });
+        }, 0);
+      }
+    } catch (e) {
+      console.error('💥 Error in drinkWater:', e);
+      // Optimistic update with limit
+      setHydrationState(prev => {
+        const next = Math.min(prev.count + 1, prev.target);
+        if (next === prev.target && prev.count < prev.target) {
+          setTimeout(() => {
+            confetti({
+              particleCount: 150,
+              spread: 90,
+              origin: { y: 0.6 },
+              colors: ['#60a5fa', '#3b82f6', '#2563eb', '#1d4ed8'],
+              zIndex: 10000
+            });
+          }, 0);
+        }
+        return { ...prev, count: next };
       });
-    } catch (e) { console.error(e); }
+    }
   };
 
   const incrementPomodoro = async () => {
-    const newCount = pomodoroStats + 1;
-    setPomodoroStats(newCount);
     try {
-      await axios.put('/stats', {
-        hydrationCount: hydration.count,
-        pomodoros: newCount
-      });
-    } catch (e) { console.error(e); }
+      const res = await axios.post('/stats/pomodoro');
+      setPomodoroStats(res.data.pomodoros);
+      setPomodoroHistory(res.data.pomodoroHistory || []);
+    } catch (e) {
+      console.error(e);
+      // Fallback local update if offline
+      setPomodoroStats(p => p + 1);
+    }
   }
 
   // Tasks
@@ -234,6 +310,62 @@ const App = () => {
     } catch (e) { console.error(e); }
   };
 
+  // Checklist
+  const addChecklistItem = async (text) => {
+    try {
+      const res = await axios.post('/checklist', { text });
+      setChecklistItems([res.data, ...checklistItems]);
+    } catch (e) { console.error(e); }
+  };
+
+  const toggleChecklistItem = async (id, isCompleted) => {
+    try {
+      // Optimistic
+      setChecklistItems(items => items.map(i => i._id === id ? { ...i, isCompleted, completedAt: isCompleted ? new Date() : null } : i));
+      const res = await axios.put(`/checklist/${id}`, { isCompleted });
+      // Update with server response to ensure consistency
+      setChecklistItems(items => items.map(i => i._id === id ? res.data : i));
+    } catch (e) { console.error(e); }
+  };
+
+  const deleteChecklistItem = async (id) => {
+    try {
+      setChecklistItems(items => items.filter(i => i._id !== id));
+      await axios.delete(`/checklist/${id}`);
+    } catch (e) { console.error(e); }
+  };
+
+  // Profile
+  const updateProfile = async (data) => {
+    try {
+      const res = await axios.put('/profile', data);
+      setUserProfile(res.data);
+      // Also update hydration target if changed
+      if (data.dailyPomodoroGoal) {
+        // You might want to sync this to Stats too? 
+        // For now, dashboard just reads it from userProfile
+      }
+      setToast({ message: "Profile updated successfully" });
+    } catch (e) { console.error(e); }
+  };
+
+  const exportData = async () => {
+    try {
+      const res = await axios.get('/export');
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(res.data, null, 2));
+      const downloadAnchorNode = document.createElement('a');
+      downloadAnchorNode.setAttribute("href", dataStr);
+      downloadAnchorNode.setAttribute("download", `zenfocus_backup_${new Date().toISOString().split('T')[0]}.json`);
+      document.body.appendChild(downloadAnchorNode); // required for firefox
+      downloadAnchorNode.click();
+      downloadAnchorNode.remove();
+      setToast({ message: "Data exported successfully" });
+    } catch (e) {
+      console.error(e);
+      setToast({ message: "Export failed" });
+    }
+  };
+
   // Notifications
   useEffect(() => {
     const checkReminders = () => {
@@ -270,6 +402,11 @@ const App = () => {
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         .dragging-ghost { pointer-events: none; z-index: 9999; opacity: 0.8; transform: scale(1.05); }
+        @keyframes shimmer { 
+          from { transform: translateX(-150%) skewX(12deg); } 
+          to { transform: translateX(150%) skewX(12deg); } 
+        }
+        .dashed-border { border-style: dashed; }
       `}</style>
 
       {toast && <Toast message={toast.message} onClose={() => setToast(null)} />}
@@ -287,6 +424,7 @@ const App = () => {
             { id: 'stack', icon: Layers, label: 'Stack' },
             { id: 'dump', icon: Brain, label: 'Clear' },
             { id: 'ideas', icon: Lightbulb, label: 'Ideas' },
+            { id: 'checklist', icon: CheckSquare, label: 'Tasks' },
           ].map(item => (
             <button key={item.id} onClick={() => setActiveTab(item.id)}
               className={`flex flex-col items-center justify-center p-3 rounded-xl transition-all duration-300 group ${activeTab === item.id ? 'bg-[#0B0C15] text-indigo-400 border border-slate-800 shadow-inner' : 'text-slate-500 hover:text-slate-300'}`}>
@@ -296,7 +434,9 @@ const App = () => {
           ))}
         </div>
         <div className="mt-auto mb-4">
-          <div className="h-10 w-10 rounded-full bg-gradient-to-tr from-purple-500 to-indigo-500 flex items-center justify-center text-white font-bold text-xs shadow-md border-2 border-[#0B0C15]">JS</div>
+          <button onClick={() => setActiveTab('profile')} className={`h-10 w-10 rounded-full bg-gradient-to-tr from-purple-500 to-indigo-500 flex items-center justify-center text-white font-bold text-xs shadow-md border-2 ${activeTab === 'profile' ? 'border-emerald-400 ring-2 ring-emerald-500/50' : 'border-[#0B0C15]'}`}>
+            {userProfile.name ? userProfile.name.charAt(0) : 'U'}
+          </button>
         </div>
       </nav>
 
@@ -328,6 +468,10 @@ const App = () => {
                     onNotify={(t, b) => { sendNotification(t, b); setToast({ message: b }); }}
                     onSessionComplete={incrementPomodoro}
                     pomodoroStats={pomodoroStats}
+                    pomodoroHistory={pomodoroHistory}
+                    dailyGoal={userProfile.dailyGoal}
+                    tasks={tasks} // Kanban tasks
+                    checklistItems={checklistItems} // Quick tasks
                   />
                 </div>
               </div>
@@ -369,12 +513,33 @@ const App = () => {
                 <IdeaVault ideas={ideas} addIdea={addIdea} deleteIdea={deleteIdea} />
               </div>
             )}
+
+            {activeTab === 'checklist' && (
+              <div className="h-full animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <Checklist
+                  items={checklistItems}
+                  onAdd={addChecklistItem}
+                  onToggle={toggleChecklistItem}
+                  onDelete={deleteChecklistItem}
+                />
+              </div>
+            )}
+
+            {activeTab === 'profile' && (
+              <div className="h-full animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <Profile
+                  profile={userProfile}
+                  onUpdateProfile={updateProfile}
+                  onExportData={exportData}
+                />
+              </div>
+            )}
           </div>
         </div>
 
         {/* Right Sidebar (Desktop) */}
         <aside className="w-80 bg-[#151621] border-l border-slate-800 p-6 hidden xl:flex flex-col gap-6 z-20 shadow-2xl">
-          <WidgetsContent hydration={hydration} setHydration={setHydration} quickTask={quickTask} setQuickTask={setQuickTask} addTask={addTask} tasks={tasks} />
+          <WidgetsContent hydration={hydration} onDrink={drinkWater} quickTask={quickTask} setQuickTask={setQuickTask} addTask={addTask} tasks={tasks} />
         </aside>
 
         {/* Mobile Widgets Drawer */}
@@ -386,7 +551,7 @@ const App = () => {
                 <h3 className="font-bold text-white">Tools</h3>
                 <button onClick={() => setShowMobileWidgets(false)}><X size={20} className="text-slate-500" /></button>
               </div>
-              <WidgetsContent hydration={hydration} setHydration={setHydration} quickTask={quickTask} setQuickTask={setQuickTask} addTask={addTask} tasks={tasks} />
+              <WidgetsContent hydration={hydration} onDrink={drinkWater} quickTask={quickTask} setQuickTask={setQuickTask} addTask={addTask} tasks={tasks} />
             </div>
           </div>
         )}
