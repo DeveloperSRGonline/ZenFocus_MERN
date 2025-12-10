@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { User, Download, Save, Shield } from 'lucide-react';
+import { User, Download, Save, Shield, Volume2, Upload, Trash2, Play } from 'lucide-react';
+import { saveCustomSound, deleteCustomSound, getCustomSound } from '../utils/helpers';
 
 const Profile = ({ profile, onUpdateProfile, onExportData }) => {
     const [formData, setFormData] = useState({
@@ -7,7 +8,50 @@ const Profile = ({ profile, onUpdateProfile, onExportData }) => {
         bio: profile?.bio || '',
         dailyGoal: profile?.dailyGoal || 8
     });
+
     const [isExporting, setIsExporting] = useState(false);
+    const [customSound, setCustomSound] = useState(null);
+    const [isPlaying, setIsPlaying] = useState(false);
+
+    React.useEffect(() => {
+        getCustomSound().then(file => {
+            if (file) setCustomSound(file);
+        });
+    }, []);
+
+    const handleFileUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        // Limit to 2MB
+        if (file.size > 2 * 1024 * 1024) {
+            alert("File size must be less than 2MB");
+            return;
+        }
+
+        try {
+            await saveCustomSound(file);
+            setCustomSound(file);
+        } catch (err) {
+            console.error(err);
+            alert("Failed to save sound");
+        }
+    };
+
+    const handleRemoveSound = async () => {
+        await deleteCustomSound();
+        setCustomSound(null);
+    };
+
+    const previewSound = () => {
+        if (!customSound) return;
+        if (isPlaying) return; // Prevent overlapping
+
+        setIsPlaying(true);
+        const audio = new Audio(URL.createObjectURL(customSound));
+        audio.onended = () => setIsPlaying(false);
+        audio.play().catch(() => setIsPlaying(false));
+    };
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -78,6 +122,53 @@ const Profile = ({ profile, onUpdateProfile, onExportData }) => {
                             </button>
                         </div>
                     </form>
+                </div>
+
+                {/* Sound Settings */}
+                <div className="bg-[#151621] rounded-2xl p-8 border border-slate-800 shadow-xl relative overflow-hidden">
+                    <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-pink-500 to-rose-500" />
+                    <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                        <Volume2 className="text-rose-400" /> Timer Sound
+                    </h3>
+
+                    <div className="flex flex-col md:flex-row items-center gap-6">
+                        <div className="flex-1">
+                            <p className="text-slate-400 text-sm mb-4">
+                                Upload a custom sound to play when the timer finishes. <br />
+                                <span className="text-xs text-slate-500">(Max 2MB, MP3/WAV supported)</span>
+                            </p>
+
+                            {!customSound ? (
+                                <div className="mt-2">
+                                    <label className="cursor-pointer bg-[#0B0C15] hover:bg-slate-800 border border-slate-700 border-dashed text-slate-400 px-4 py-8 rounded-lg flex flex-col items-center justify-center gap-2 transition-all hover:border-rose-500/50">
+                                        <Upload size={24} className="mb-1" />
+                                        <span className="text-sm font-bold">Click to upload sound</span>
+                                        <input type="file" accept="audio/*" onChange={handleFileUpload} className="hidden" />
+                                    </label>
+                                </div>
+                            ) : (
+                                <div className="bg-[#0B0C15] p-4 rounded-lg border border-slate-800 flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <div className="h-10 w-10 bg-rose-500/10 rounded-full flex items-center justify-center text-rose-400">
+                                            <Volume2 size={20} />
+                                        </div>
+                                        <div>
+                                            <div className="text-sm font-bold text-white">Custom Sound Active</div>
+                                            <div className="text-xs text-slate-500">{(customSound.size / 1024).toFixed(1)} KB</div>
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <button onClick={previewSound} disabled={isPlaying} className="p-2 hover:bg-indigo-500/20 rounded text-indigo-400 transition-colors" title="Preview">
+                                            <Play size={18} className={isPlaying ? "animate-pulse" : ""} />
+                                        </button>
+                                        <button onClick={handleRemoveSound} className="p-2 hover:bg-red-500/20 rounded text-red-400 transition-colors" title="Remove">
+                                            <Trash2 size={18} />
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
                 </div>
 
                 {/* Data Zone */}

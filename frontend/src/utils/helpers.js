@@ -110,6 +110,61 @@ export const useMobileDrag = (onDrop) => {
     onTouchEnd: handleTouchEndOrMove
   };
 };
+// --- Custom Sound Utility (IndexedDB) ---
+const DB_NAME = 'zenfocus_db';
+const STORE_NAME = 'custom_sounds';
+
+export const saveCustomSound = (file) => {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, 1);
+    request.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME);
+      }
+    };
+    request.onsuccess = (e) => {
+      const db = e.target.result;
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+      store.put(file, 'timer_end_sound');
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => reject('Save failed');
+    };
+    request.onerror = () => reject('DB Error');
+  });
+};
+
+export const getCustomSound = () => {
+  return new Promise((resolve) => { // resolving null on error is fine for our use case
+    const request = indexedDB.open(DB_NAME, 1);
+    request.onupgradeneeded = (e) => {
+      e.target.result.createObjectStore(STORE_NAME);
+    };
+    request.onsuccess = (e) => {
+      const db = e.target.result;
+      const tx = db.transaction(STORE_NAME, 'readonly');
+      const store = tx.objectStore(STORE_NAME);
+      const req = store.get('timer_end_sound');
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => resolve(null);
+    };
+    request.onerror = () => resolve(null);
+  });
+};
+
+export const deleteCustomSound = () => {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, 1);
+    request.onsuccess = (e) => {
+      const db = e.target.result;
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+      store.delete('timer_end_sound');
+      tx.oncomplete = () => resolve(true);
+    };
+  });
+};
 
 // --- Audio Engine ---
 export const AudioEngine = {
@@ -153,7 +208,21 @@ export const AudioEngine = {
       }
     }
   },
-  playPing: () => {
+  playPing: async () => {
+    // Try custom sound first
+    try {
+      const customFile = await getCustomSound();
+      if (customFile) {
+        const audioURL = URL.createObjectURL(customFile);
+        const audio = new Audio(audioURL);
+        audio.play().catch(e => console.error("Audio play failed", e));
+        return;
+      }
+    } catch (e) {
+      console.error("Custom sound check failed", e);
+    }
+
+    // Fallback to oscillator
     if (!AudioEngine.ctx) AudioEngine.init();
     const ctx = AudioEngine.ctx;
     const osc = ctx.createOscillator();
