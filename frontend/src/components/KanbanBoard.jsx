@@ -18,14 +18,14 @@ const KanbanBoard = ({ tasks, updateTaskStatus, deleteTask }) => {
     const onDragStart = (e, taskId) => e.dataTransfer.setData("taskId", taskId);
 
     return (
-        <div className="flex flex-col md:flex-row flex-1 overflow-x-auto gap-6 h-full pb-20 md:pb-2">
+        <div className="flex flex-row flex-1 overflow-x-auto gap-4 md:gap-6 h-full pb-20 md:pb-2 snap-x snap-mandatory px-4 md:px-0">
             {columns.map(col => (
                 <div key={col.id}
                     data-drop-zone="kanban-col"
                     data-drop-value={col.id}
                     onDragOver={(e) => e.preventDefault()}
                     onDrop={(e) => updateTaskStatus(e.dataTransfer.getData("taskId"), col.id)}
-                    className={`flex-1 min-w-[300px] md:min-w-0 rounded-2xl flex flex-col h-full bg-[#151621] border ${col.color} shadow-lg shrink-0`}>
+                    className={`flex-1 min-w-[85vw] md:min-w-[350px] rounded-2xl flex flex-col h-full bg-[#151621] border ${col.color} shadow-lg shrink-0 snap-center`}>
                     <div className="p-4 font-bold text-slate-300 flex justify-between items-center border-b border-slate-800 bg-[#1a1c29] rounded-t-2xl">
                         {col.label} <span className="bg-[#0B0C15] text-xs px-2 py-1 rounded text-slate-500 border border-slate-800">{tasks.filter(t => t.status === col.id).length}</span>
                     </div>

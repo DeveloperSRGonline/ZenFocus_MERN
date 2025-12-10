@@ -397,7 +397,7 @@ const App = () => {
   }, []);
 
   return (
-    <div className="flex h-screen font-sans bg-[#0B0C15] text-slate-200 selection:bg-indigo-500/30 overflow-hidden">
+    <div className="flex h-[100dvh] font-sans bg-[#0B0C15] text-slate-200 selection:bg-indigo-500/30 overflow-hidden">
       <style>{`
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
