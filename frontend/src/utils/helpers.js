@@ -166,6 +166,45 @@ export const deleteCustomSound = () => {
   });
 };
 
+export const saveProfilePicture = (file) => {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, 1);
+    request.onsuccess = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        // Should exist but just in case
+        resolve(false);
+        return;
+      }
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+      store.put(file, 'profile_picture');
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => reject('Save failed');
+    };
+    request.onerror = () => reject('DB Error');
+  });
+};
+
+export const getProfilePicture = () => {
+  return new Promise((resolve) => {
+    const request = indexedDB.open(DB_NAME, 1);
+    request.onsuccess = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        resolve(null);
+        return;
+      }
+      const tx = db.transaction(STORE_NAME, 'readonly');
+      const store = tx.objectStore(STORE_NAME);
+      const req = store.get('profile_picture');
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => resolve(null);
+    };
+    request.onerror = () => resolve(null);
+  });
+};
+
 // --- Audio Engine ---
 export const AudioEngine = {
   ctx: null,
@@ -208,32 +247,78 @@ export const AudioEngine = {
       }
     }
   },
+
+  stop: () => {
+    if (AudioEngine.currentAudio) {
+      AudioEngine.currentAudio.pause();
+      AudioEngine.currentAudio.currentTime = 0;
+      AudioEngine.currentAudio = null;
+    }
+    if (AudioEngine.timeoutId) {
+      clearTimeout(AudioEngine.timeoutId);
+      AudioEngine.timeoutId = null;
+    }
+    if (AudioEngine.node) {
+      try {
+        AudioEngine.node.source.stop();
+        AudioEngine.node.source.disconnect();
+      } catch (e) { /* ignore */ }
+      AudioEngine.node = null;
+    }
+  },
   playPing: async () => {
+    // Stop any currently playing sound first
+    AudioEngine.stop();
+
     // Try custom sound first
     try {
       const customFile = await getCustomSound();
       if (customFile) {
         const audioURL = URL.createObjectURL(customFile);
         const audio = new Audio(audioURL);
+        audio.loop = true; // Loop enabled
         audio.play().catch(e => console.error("Audio play failed", e));
+
+        AudioEngine.currentAudio = audio;
+
+        // Stop after 60 seconds
+        AudioEngine.timeoutId = setTimeout(() => {
+          AudioEngine.stop();
+        }, 60000);
         return;
       }
     } catch (e) {
       console.error("Custom sound check failed", e);
     }
 
-    // Fallback to oscillator
+    // Fallback to oscillator (pulsing for 60 seconds)
     if (!AudioEngine.ctx) AudioEngine.init();
     const ctx = AudioEngine.ctx;
+
+    // Create a pulsing effect
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.connect(gain);
     gain.connect(ctx.destination);
+
     osc.frequency.setValueAtTime(880, ctx.currentTime);
     gain.gain.setValueAtTime(0.1, ctx.currentTime);
+
+    // Simple beep pattern
+    const now = ctx.currentTime;
+    // Beep every second for 60 seconds
+    for (let i = 0; i < 60; i++) {
+      gain.gain.setValueAtTime(0.1, now + i);
+      gain.gain.exponentialRampToValueAtTime(0.00001, now + i + 0.5);
+    }
+
     osc.start();
-    gain.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + 1);
-    osc.stop(ctx.currentTime + 1);
+    osc.stop(now + 60);
+
+    AudioEngine.node = { source: osc, gain: gain };
+    AudioEngine.timeoutId = setTimeout(() => {
+      AudioEngine.stop();
+    }, 60000);
   }
 };
 

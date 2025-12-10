@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { User, Download, Save, Shield, Volume2, Upload, Trash2, Play } from 'lucide-react';
-import { saveCustomSound, deleteCustomSound, getCustomSound } from '../utils/helpers';
+
+import { User, Download, Save, Shield, Volume2, Upload, Trash2, Play, Camera } from 'lucide-react';
+import { saveCustomSound, deleteCustomSound, getCustomSound, saveProfilePicture, getProfilePicture } from '../utils/helpers';
 
 const Profile = ({ profile, onUpdateProfile, onExportData }) => {
     const [formData, setFormData] = useState({
@@ -13,11 +14,30 @@ const Profile = ({ profile, onUpdateProfile, onExportData }) => {
     const [customSound, setCustomSound] = useState(null);
     const [isPlaying, setIsPlaying] = useState(false);
 
+
     React.useEffect(() => {
         getCustomSound().then(file => {
             if (file) setCustomSound(file);
         });
+        getProfilePicture().then(file => {
+            if (file) setProfilePic(file);
+        });
     }, []);
+
+    const [profilePic, setProfilePic] = useState(null);
+
+    const handleProfilePicUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        if (file.size > 2 * 1024 * 1024) {
+            alert("Image too large (max 2MB)");
+            return;
+        }
+        try {
+            await saveProfilePicture(file);
+            setProfilePic(file);
+        } catch (e) { console.error(e); }
+    };
 
     const handleFileUpload = async (e) => {
         const file = e.target.files[0];
@@ -69,9 +89,19 @@ const Profile = ({ profile, onUpdateProfile, onExportData }) => {
             <div className="max-w-2xl mx-auto space-y-8">
 
                 {/* Header */}
-                <div className="text-center mb-12">
-                    <div className="h-24 w-24 mx-auto bg-gradient-to-tr from-indigo-500 to-purple-500 rounded-full flex items-center justify-center text-4xl text-white font-bold shadow-2xl mb-4 border-4 border-[#0B0C15]">
-                        {formData.name.charAt(0) || 'U'}
+
+                <div className="text-center mb-12 relative">
+                    <div className="h-24 w-24 mx-auto rounded-full shadow-2xl mb-4 border-4 border-[#0B0C15] relative group overflow-hidden bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center">
+                        {profilePic ? (
+                            <img src={URL.createObjectURL(profilePic)} alt="Profile" className="w-full h-full object-cover" />
+                        ) : (
+                            <span className="text-4xl text-white font-bold">{formData.name.charAt(0) || 'U'}</span>
+                        )}
+
+                        <label className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                            <Camera className="text-white drop-shadow-lg" size={24} />
+                            <input type="file" accept="image/*" onChange={handleProfilePicUpload} className="hidden" />
+                        </label>
                     </div>
                     <h2 className="text-3xl font-bold text-white mb-2">{formData.name || 'User'}</h2>
                     <p className="text-slate-400">{formData.bio || 'No bio yet'}</p>

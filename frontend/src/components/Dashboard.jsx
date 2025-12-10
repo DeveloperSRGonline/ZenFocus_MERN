@@ -189,8 +189,8 @@ const Timer = ({ onNotify, onSessionComplete, pomodoroStats, pomodoroHistory = [
 
           {/* Settings Modal */}
           {showSettings && (
-            <div className="absolute inset-0 z-50 bg-[#151621]/95 backdrop-blur-sm flex flex-col p-6 animate-in fade-in duration-200">
-              <div className="flex justify-between items-center mb-6">
+            <div className="absolute inset-0 z-50 bg-[#151621]/95 backdrop-blur-sm flex flex-col p-6 animate-in fade-in duration-200 overflow-hidden">
+              <div className="flex justify-between items-center mb-6 shrink-0">
                 <h3 className="text-lg font-bold text-white flex items-center gap-2">
                   <Settings size={18} className="text-indigo-400" /> Timer Settings
                 </h3>
@@ -206,8 +206,8 @@ const Timer = ({ onNotify, onSessionComplete, pomodoroStats, pomodoroHistory = [
                 </div>
               </div>
 
-              <form onSubmit={handleSaveSettings} className="space-y-6 flex-1">
-                <div className="space-y-4">
+              <form onSubmit={handleSaveSettings} className="space-y-6 flex-1 flex flex-col min-h-0">
+                <div className="space-y-4 overflow-y-auto custom-scrollbar pr-2 flex-1">
                   <div>
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Focus Duration (min)</label>
                     <input
@@ -237,9 +237,11 @@ const Timer = ({ onNotify, onSessionComplete, pomodoroStats, pomodoroHistory = [
                   </div>
                 </div>
 
-                <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl transition-colors">
-                  Save Changes
-                </button>
+                <div className="pt-2 shrink-0">
+                  <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl transition-colors">
+                    Save Changes
+                  </button>
+                </div>
               </form>
             </div>
           )}
