@@ -203,7 +203,7 @@ const CalendarView = ({ tasks, addTask, updateTaskTime, updateTaskDate, onEditTa
     const days = [];
     const totalDays = getDaysInMonth(currentDate);
     const startPad = getFirstDay(currentDate);
-    for (let i = 0; i < startPad; i++) days.push(<div key={`empty-${i}`} className="h-24 md:h-28 bg-[#0B0C15]/50 border border-slate-800/50" />);
+    for (let i = 0; i < startPad; i++) days.push(<div key={`empty-${i}`} className="min-h-[6rem] md:min-h-[7rem] bg-[#0B0C15]/50" />);
     for (let d = 1; d <= totalDays; d++) {
       const dateObj = new Date(currentDate.getFullYear(), currentDate.getMonth(), d);
       const dateStr = dateObj.toISOString().split('T')[0];
@@ -217,7 +217,7 @@ const CalendarView = ({ tasks, addTask, updateTaskTime, updateTaskDate, onEditTa
           onClick={() => { setTimelineDate(dateObj); setViewMode('timeline'); }}
           onDragOver={onDragOver}
           onDrop={(e) => onDrop(e, dateStr)}
-          className={`h-24 md:h-28 border border-slate-800 p-1 md:p-2 cursor-pointer hover:bg-[#1a1c29] transition-colors bg-[#151621] relative group overflow-hidden ${isToday ? 'bg-indigo-900/10' : ''}`}
+          className={`min-h-[6rem] md:min-h-[7rem] p-1 md:p-2 cursor-pointer hover:bg-[#1a1c29] transition-colors bg-[#151621] relative group overflow-hidden ${isToday ? 'bg-indigo-900/10' : ''}`}
         >
           <div className={`text-xs md:text-sm font-bold mb-1 md:mb-2 flex justify-between ${isToday ? 'text-indigo-400' : 'text-slate-400'}`}>
             {d} {isToday && <span className="text-[9px] bg-indigo-500 text-white px-1.5 py-0.5 rounded hidden md:inline">TODAY</span>}
@@ -282,7 +282,7 @@ const CalendarView = ({ tasks, addTask, updateTaskTime, updateTaskDate, onEditTa
           <div className="grid grid-cols-7 text-center border-b border-slate-800 bg-[#0B0C15] text-[10px] font-bold uppercase tracking-widest text-slate-500 py-3">
             {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(d => <div key={d}>{d}</div>)}
           </div>
-          <div className="grid grid-cols-7 flex-1 overflow-y-auto custom-scrollbar no-scrollbar">{renderMonth()}</div>
+          <div className="grid grid-cols-7 flex-1 overflow-y-auto custom-scrollbar no-scrollbar bg-slate-800 gap-px border border-slate-800">{renderMonth()}</div>
         </div>
       ) : (
         <Timeline

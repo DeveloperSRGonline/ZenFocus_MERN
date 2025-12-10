@@ -23,20 +23,22 @@ axios.defaults.baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000/
 // --- Mobile Nav ---
 const MobileNav = ({ activeTab, setActiveTab }) => {
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-[#151621] border-t border-slate-800 p-2 flex justify-around items-center z-50 md:hidden">
+    <div className="fixed bottom-0 left-0 right-0 bg-[#151621] border-t border-slate-800 p-2 flex overflow-x-auto no-scrollbar gap-2 z-50 md:hidden">
       {[
         { id: 'dashboard', icon: Clock, label: 'Focus' },
         { id: 'calendar', icon: CalendarIcon, label: 'Plan' },
         { id: 'kanban', icon: Layout, label: 'Board' },
         { id: 'stack', icon: Layers, label: 'Stack' },
+        { id: 'dump', icon: Brain, label: 'Clear' },
+        { id: 'ideas', icon: Lightbulb, label: 'Ideas' },
         { id: 'checklist', icon: CheckSquare, label: 'Tasks' },
         { id: 'profile', icon: User, label: 'Me' },
       ].map(item => (
         <button key={item.id} onClick={() => setActiveTab(item.id)}
-          className={`flex flex-col items-center justify-center p-2 rounded-lg transition-all ${activeTab === item.id ? 'text-indigo-400' : 'text-slate-500'}`}
+          className={`flex flex-col items-center justify-center p-2 rounded-lg transition-all min-w-[60px] shrink-0 ${activeTab === item.id ? 'text-indigo-400' : 'text-slate-500'}`}
         >
           <item.icon size={20} className={`mb-1 ${activeTab === item.id ? 'fill-indigo-500/10' : ''}`} />
-          <span className="text-[9px] font-bold tracking-wider uppercase">{item.label}</span>
+          <span className="text-[9px] font-bold tracking-wider uppercase whitespace-nowrap">{item.label}</span>
         </button>
       ))}
     </div>
