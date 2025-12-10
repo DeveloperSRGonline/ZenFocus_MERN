@@ -168,7 +168,12 @@ const Timer = ({ onNotify, onSessionComplete, pomodoroStats, pomodoroHistory = [
             </button>
 
             <button
-              onClick={() => setIsActive(!isActive)}
+              onClick={() => {
+                if (!isActive && Notification.permission === 'default') {
+                  Notification.requestPermission();
+                }
+                setIsActive(!isActive);
+              }}
               className={`p-6 rounded-full shadow-lg transition-all transform hover:scale-105 active:scale-95 ${isActive ? 'bg-amber-500/10 text-amber-400 ring-1 ring-amber-500/50' : `bg-gradient-to-br ${modeConfig[mode].bg} text-white hover:shadow-lg hover:shadow-indigo-500/25`}`}
             >
               {isActive ? <Pause size={32} fill="currentColor" /> : <Play size={32} fill="currentColor" />}
@@ -189,9 +194,16 @@ const Timer = ({ onNotify, onSessionComplete, pomodoroStats, pomodoroHistory = [
                 <h3 className="text-lg font-bold text-white flex items-center gap-2">
                   <Settings size={18} className="text-indigo-400" /> Timer Settings
                 </h3>
-                <button onClick={() => setShowSettings(false)} className="text-slate-400 hover:text-white">
-                  <X size={20} />
-                </button>
+                <div className="flex gap-2">
+                  {Notification.permission !== 'granted' && (
+                    <button onClick={() => Notification.requestPermission()} className="text-xs bg-indigo-500/20 text-indigo-400 px-2 py-1 rounded hover:bg-indigo-500/30 transition-colors">
+                      Enable Notifications
+                    </button>
+                  )}
+                  <button onClick={() => setShowSettings(false)} className="text-slate-400 hover:text-white">
+                    <X size={20} />
+                  </button>
+                </div>
               </div>
 
               <form onSubmit={handleSaveSettings} className="space-y-6 flex-1">

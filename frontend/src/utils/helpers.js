@@ -32,7 +32,7 @@ export const calculateDuration = (startStr, endStr) => {
   const end = parseTime(endStr);
   if (!start || !end) return 0;
   let diffInMinutes = (end.h * 60 + end.m) - (start.h * 60 + start.m);
-  if (diffInMinutes < 0) diffInMinutes += 24 * 60; 
+  if (diffInMinutes < 0) diffInMinutes += 24 * 60;
   return diffInMinutes / 60;
 };
 
@@ -49,7 +49,7 @@ export const useMobileDrag = (onDrop) => {
 
     timeoutRef.current = setTimeout(() => {
       if (navigator.vibrate) navigator.vibrate(50);
-      
+
       const rect = target.getBoundingClientRect();
       const ghost = target.cloneNode(true);
       ghost.style.position = 'fixed';
@@ -64,15 +64,15 @@ export const useMobileDrag = (onDrop) => {
       ghost.style.transform = 'scale(1.05)';
       ghost.style.transition = 'none';
       ghost.classList.add('dragging-ghost');
-      
+
       document.body.appendChild(ghost);
       ghostRef.current = ghost;
 
       const handleTouchMove = (moveEvent) => {
         if (moveEvent.cancelable) moveEvent.preventDefault();
         const t = moveEvent.touches[0];
-        ghost.style.left = `${t.clientX - (rect.width/2)}px`;
-        ghost.style.top = `${t.clientY - (rect.height/2)}px`;
+        ghost.style.left = `${t.clientX - (rect.width / 2)}px`;
+        ghost.style.top = `${t.clientY - (rect.height / 2)}px`;
       };
 
       const handleTouchEnd = (endEvent) => {
@@ -80,7 +80,7 @@ export const useMobileDrag = (onDrop) => {
         ghost.style.display = 'none';
         const dropTarget = document.elementFromPoint(t.clientX, t.clientY);
         ghost.remove();
-        
+
         window.removeEventListener('touchmove', handleTouchMove);
         window.removeEventListener('touchend', handleTouchEnd);
         ghostRef.current = null;
@@ -129,8 +129,8 @@ export const AudioEngine = {
       const output = noiseBuffer.getChannelData(0);
       for (let i = 0; i < bufferSize; i++) {
         const white = Math.random() * 2 - 1;
-        output[i] = (0 + white * 0.02) / 1.02; 
-        output[i] *= 3.5; 
+        output[i] = (0 + white * 0.02) / 1.02;
+        output[i] *= 3.5;
       }
       const noise = ctx.createBufferSource();
       noise.buffer = noiseBuffer;
@@ -168,9 +168,32 @@ export const AudioEngine = {
   }
 };
 
-export const sendNotification = (title, body) => {
-  if (Notification.permission === "granted") {
-    new Notification(title, { body, icon: '/favicon.ico' });
-  }
+export const sendNotification = async (title, body) => {
   AudioEngine.playPing();
+
+  if (Notification.permission === "granted") {
+    try {
+      // Try using Service Worker for better mobile support
+      const registration = await navigator.serviceWorker.ready;
+      if (registration && registration.showNotification) {
+        await registration.showNotification(title, {
+          body,
+          icon: '/favicon.ico',
+          vibrate: [200, 100, 200],
+          requireInteraction: true,
+          tag: 'timer-notification'
+        });
+        return;
+      }
+    } catch (e) {
+      console.warn("Service Worker notification failed, falling back to basic API", e);
+    }
+
+    // Fallback
+    try {
+      new Notification(title, { body, icon: '/favicon.ico' });
+    } catch (e) {
+      console.error("Notification API failed", e);
+    }
+  }
 };

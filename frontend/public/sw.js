@@ -1,5 +1,5 @@
 // Service Worker for ZenFocus PWA
-const CACHE_NAME = 'zenfocus-v1';
+const CACHE_NAME = 'zenfocus-v2';
 const urlsToCache = [
     '/',
     '/index.html',
