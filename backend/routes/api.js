@@ -1,93 +1,99 @@
 const express = require('express');
 const router = express.Router();
-const { Task, Log, Dump, Idea, Stats, Checklist, UserProfile } = require('../models/schemas');
+const { Task, Log, Dump, Idea, Stats, Checklist, User } = require('../models/schemas');
+const { protect } = require('../middleware/authMiddleware');
+
+router.use(protect); // Apply to all routes below
 
 // --- Helper for Stats ---
-const getStats = async () => {
-  let stats = await Stats.findOne({ identifier: 'daily_stats' });
-  if (!stats) stats = await Stats.create({ identifier: 'daily_stats' });
+const getStats = async (user) => {
+  let stats = await Stats.findOne({ user: user._id });
+  if (!stats) stats = await Stats.create({ user: user._id, hydrationTarget: user.dailyGoal || 8 }); // Sync goal?
   return stats;
 };
 
 // --- TASKS ---
 router.get('/tasks', async (req, res) => {
-  const tasks = await Task.find();
+  const tasks = await Task.find({ user: req.user._id });
   res.json(tasks);
 });
 
 router.post('/tasks', async (req, res) => {
-  const newTask = await Task.create(req.body);
+  const newTask = await Task.create({ ...req.body, user: req.user._id });
   res.json(newTask);
 });
 
 router.put('/tasks/:id', async (req, res) => {
-  const updated = await Task.findByIdAndUpdate(req.params.id, req.body, { new: true });
+  const updated = await Task.findOneAndUpdate(
+    { _id: req.params.id, user: req.user._id },
+    req.body,
+    { new: true }
+  );
+  if (!updated) return res.status(404).json({ message: 'Task not found' });
   res.json(updated);
 });
 
 router.delete('/tasks/:id', async (req, res) => {
-  await Task.findByIdAndDelete(req.params.id);
+  await Task.findOneAndDelete({ _id: req.params.id, user: req.user._id });
   res.json({ message: 'Deleted' });
 });
 
 // --- LOGS ---
 router.get('/logs', async (req, res) => {
-  const logs = await Log.find().sort({ date: -1 });
+  const logs = await Log.find({ user: req.user._id }).sort({ date: -1 });
   res.json(logs);
 });
 
 router.post('/logs', async (req, res) => {
-  const log = await Log.create(req.body);
+  const log = await Log.create({ ...req.body, user: req.user._id });
   res.json(log);
 });
 
 // --- DUMPS ---
 router.get('/dumps', async (req, res) => {
-  const dumps = await Dump.find().sort({ date: -1 });
+  const dumps = await Dump.find({ user: req.user._id }).sort({ date: -1 });
   res.json(dumps);
 });
 
 router.post('/dumps', async (req, res) => {
-  const dump = await Dump.create(req.body);
+  const dump = await Dump.create({ ...req.body, user: req.user._id });
   res.json(dump);
 });
 
 router.delete('/dumps/:id', async (req, res) => {
-  await Dump.findByIdAndDelete(req.params.id);
+  await Dump.findOneAndDelete({ _id: req.params.id, user: req.user._id });
   res.json({ message: 'Deleted' });
 });
 
 // --- IDEAS ---
 router.get('/ideas', async (req, res) => {
-  const ideas = await Idea.find().sort({ date: -1 });
+  const ideas = await Idea.find({ user: req.user._id }).sort({ date: -1 });
   res.json(ideas);
 });
 
 router.post('/ideas', async (req, res) => {
-  const idea = await Idea.create(req.body);
+  const idea = await Idea.create({ ...req.body, user: req.user._id });
   res.json(idea);
 });
 
 router.delete('/ideas/:id', async (req, res) => {
-  await Idea.findByIdAndDelete(req.params.id);
+  await Idea.findOneAndDelete({ _id: req.params.id, user: req.user._id });
   res.json({ message: 'Deleted' });
 });
 
 // --- STATS (Hydration & Pomodoro) ---
 router.get('/stats', async (req, res) => {
-  const stats = await getStats();
+  const stats = await getStats(req.user);
   const today = new Date().toISOString().split('T')[0];
 
   // Daily Reset Logic for Hydration
   const todayEntry = stats.hydrationHistory.find(h => h.date === today);
   if (!todayEntry) {
-    // If no entry for today, reset count to 0 (visual reset) - effectively starting new day
     if (stats.hydrationCount !== 0) {
       stats.hydrationCount = 0;
       await stats.save();
     }
   } else {
-    // Ensure top-level count matches history (sync fix)
     if (stats.hydrationCount !== todayEntry.count) {
       stats.hydrationCount = todayEntry.count;
       await stats.save();
@@ -98,13 +104,12 @@ router.get('/stats', async (req, res) => {
 });
 
 router.post('/stats/water', async (req, res) => {
-  const stats = await getStats();
+  const stats = await getStats(req.user);
   const today = new Date().toISOString().split('T')[0];
 
   const historyIndex = stats.hydrationHistory.findIndex(h => h.date === today);
   let currentCount = historyIndex >= 0 ? stats.hydrationHistory[historyIndex].count : 0;
 
-  // Don't increment if already at target
   if (currentCount >= stats.hydrationTarget) {
     return res.json(stats);
   }
@@ -123,7 +128,7 @@ router.post('/stats/water', async (req, res) => {
 });
 
 router.post('/stats/pomodoro', async (req, res) => {
-  const stats = await getStats();
+  const stats = await getStats(req.user);
   const today = new Date().toISOString().split('T')[0];
 
   const historyIndex = stats.pomodoroHistory.findIndex(h => h.date === today);
@@ -134,14 +139,15 @@ router.post('/stats/pomodoro', async (req, res) => {
     stats.pomodoroHistory.push({ date: today, count: 1 });
   }
 
-  stats.pomodoros += 1; // Keep global total in sync
+  stats.pomodoros += 1;
   await stats.save();
   res.json(stats);
 });
 
 router.put('/stats', async (req, res) => {
+  // Only allow updating target/goals here basically
   const stats = await Stats.findOneAndUpdate(
-    { identifier: 'daily_stats' },
+    { user: req.user._id },
     req.body,
     { new: true, upsert: true }
   );
@@ -150,69 +156,65 @@ router.put('/stats', async (req, res) => {
 
 // --- CHECKLIST with Auto-Cleanup ---
 router.get('/checklist', async (req, res) => {
-  // Lazy cleanup: Delete completed items older than 10 minutes
+  // Cleanup for this user only
   const tenMinsAgo = new Date(Date.now() - 10 * 60 * 1000);
-  await Checklist.deleteMany({ isCompleted: true, completedAt: { $lt: tenMinsAgo } });
+  await Checklist.deleteMany({ user: req.user._id, isCompleted: true, completedAt: { $lt: tenMinsAgo } });
 
-  const items = await Checklist.find().sort({ isCompleted: 1, createdAt: -1 }); // Uncompleted first
+  const items = await Checklist.find({ user: req.user._id }).sort({ isCompleted: 1, createdAt: -1 });
   res.json(items);
 });
 
 router.post('/checklist', async (req, res) => {
-  const item = await Checklist.create(req.body);
+  const item = await Checklist.create({ ...req.body, user: req.user._id });
   res.json(item);
 });
 
 router.put('/checklist/:id', async (req, res) => {
   const updates = req.body;
-
-  // If completing, mark timestamp
   if (updates.isCompleted === true) {
     updates.completedAt = new Date();
   } else if (updates.isCompleted === false) {
-    updates.completedAt = null; // Reset if unchecking
+    updates.completedAt = null;
   }
 
-  const updated = await Checklist.findByIdAndUpdate(req.params.id, updates, { new: true });
+  const updated = await Checklist.findOneAndUpdate({ _id: req.params.id, user: req.user._id }, updates, { new: true });
   res.json(updated);
 });
 
 router.delete('/checklist/:id', async (req, res) => {
-  await Checklist.findByIdAndDelete(req.params.id);
+  await Checklist.findOneAndDelete({ _id: req.params.id, user: req.user._id });
   res.json({ message: 'Deleted' });
 });
 
 // --- USER PROFILE ---
 router.get('/profile', async (req, res) => {
-  let profile = await UserProfile.findOne({ identifier: 'main_user' });
-  if (!profile) profile = await UserProfile.create({ identifier: 'main_user' });
-  res.json(profile);
+  // Return the user object from req.user
+  res.json(req.user);
 });
 
 router.put('/profile', async (req, res) => {
-  const profile = await UserProfile.findOneAndUpdate(
-    { identifier: 'main_user' },
+  const updatedUser = await User.findByIdAndUpdate(
+    req.user._id,
     req.body,
-    { new: true, upsert: true }
-  );
-  res.json(profile);
+    { new: true }
+  ).select('-password');
+  res.json(updatedUser);
 });
 
 // --- DATA EXPORT ---
 router.get('/export', async (req, res) => {
   try {
-    const [tasks, logs, dumps, ideas, stats, checklist, profile] = await Promise.all([
-      Task.find(),
-      Log.find(),
-      Dump.find(),
-      Idea.find(),
-      getStats(),
-      Checklist.find(),
-      UserProfile.findOne({ identifier: 'main_user' })
+    const [tasks, logs, dumps, ideas, stats, checklist] = await Promise.all([
+      Task.find({ user: req.user._id }),
+      Log.find({ user: req.user._id }),
+      Dump.find({ user: req.user._id }),
+      Idea.find({ user: req.user._id }),
+      getStats(req.user),
+      Checklist.find({ user: req.user._id }),
     ]);
 
     const fullData = {
-      user: profile,
+      user: req.user,
       timestamp: new Date(),
       stats: stats,
       tasks,

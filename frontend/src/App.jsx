@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import {
   Clock, Calendar as CalendarIcon, Layout, Layers, Brain, Lightbulb,
-  Menu, Bell, X, Droplets, CheckSquare, Plus, User
+  Menu, Bell, X, Droplets, CheckSquare, Plus, User, LogOut, Loader
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { GoogleOAuthProvider } from '@react-oauth/google';
 
 import Timer from './components/Dashboard';
 import BrainDump from './components/BrainDump';
@@ -14,8 +15,11 @@ import KanbanBoard from './components/KanbanBoard';
 import CalendarView, { TaskModal } from './components/CalendarView';
 import Checklist from './components/Checklist';
 import Profile from './components/Profile';
+import Login from './components/Login';
+import Register from './components/Register';
 import { Toast, InputWithVoice } from './components/Shared';
 import { AudioEngine, sendNotification } from './utils/helpers';
+import { AuthProvider, useAuth } from './context/AuthContext';
 
 // Configure Axios - use environment variable for API URL
 axios.defaults.baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
@@ -90,7 +94,8 @@ const WidgetsContent = ({ hydration, onDrink, quickTask, setQuickTask, addTask, 
   </>
 );
 
-const App = () => {
+const AuthenticatedApp = () => {
+  const { user, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [tasks, setTasks] = useState([]);
   const [logs, setLogs] = useState([]);
@@ -131,7 +136,7 @@ const App = () => {
         setDumps(dumpsRes.data);
         setIdeas(ideasRes.data);
         setChecklistItems(checkRes.data);
-        setUserProfile(profileRes.data);
+        setUserProfile(profileRes.data); // Should be the user object
         if (statsRes.data) {
           setHydrationState({ count: statsRes.data.hydrationCount, target: statsRes.data.hydrationTarget });
           setPomodoroStats(statsRes.data.pomodoros);
@@ -142,11 +147,10 @@ const App = () => {
         setToast({ message: "Failed to load data from server" });
       }
     };
+
     fetchData();
     document.documentElement.classList.add('dark');
 
-    // Periodic sync with backend (every 30 seconds)
-    // This ensures UI reflects manual database changes
     const syncInterval = setInterval(async () => {
       try {
         const statsRes = await axios.get('/stats');
@@ -158,7 +162,7 @@ const App = () => {
       } catch (err) {
         console.error("Error syncing stats", err);
       }
-    }, 30000); // 30 seconds
+    }, 30000);
 
     return () => clearInterval(syncInterval);
   }, []);
@@ -167,7 +171,6 @@ const App = () => {
 
   // Hydration & Stats Sync
   const drinkWater = async () => {
-    // Don't allow clicking if already at target
     if (hydration.count >= hydration.target) {
       setToast({ message: "🎯 Daily goal already reached!" });
       return;
@@ -179,10 +182,8 @@ const App = () => {
       const target = res.data.hydrationTarget;
       const oldCount = hydration.count;
 
-      // Always sync with backend response
       setHydrationState({ count: newCount, target: target });
 
-      // Trigger confetti when hitting the target (first time)
       if (newCount === target && oldCount < target) {
         setTimeout(() => {
           confetti({
@@ -197,7 +198,6 @@ const App = () => {
       }
     } catch (e) {
       console.error('💥 Error in drinkWater:', e);
-      // Optimistic update with limit
       setHydrationState(prev => {
         const next = Math.min(prev.count + 1, prev.target);
         if (next === prev.target && prev.count < prev.target) {
@@ -223,7 +223,6 @@ const App = () => {
       setPomodoroHistory(res.data.pomodoroHistory || []);
     } catch (e) {
       console.error(e);
-      // Fallback local update if offline
       setPomodoroStats(p => p + 1);
     }
   }
@@ -238,7 +237,7 @@ const App = () => {
 
   const updateStatus = async (id, s) => {
     try {
-      setTasks(tasks.map(t => t._id === id ? { ...t, status: s } : t)); // Optimistic UI
+      setTasks(tasks.map(t => t._id === id ? { ...t, status: s } : t));
       await axios.put(`/tasks/${id}`, { status: s });
     } catch (e) { console.error(e); }
   };
@@ -322,10 +321,8 @@ const App = () => {
 
   const toggleChecklistItem = async (id, isCompleted) => {
     try {
-      // Optimistic
       setChecklistItems(items => items.map(i => i._id === id ? { ...i, isCompleted, completedAt: isCompleted ? new Date() : null } : i));
       const res = await axios.put(`/checklist/${id}`, { isCompleted });
-      // Update with server response to ensure consistency
       setChecklistItems(items => items.map(i => i._id === id ? res.data : i));
     } catch (e) { console.error(e); }
   };
@@ -342,11 +339,6 @@ const App = () => {
     try {
       const res = await axios.put('/profile', data);
       setUserProfile(res.data);
-      // Also update hydration target if changed
-      if (data.dailyPomodoroGoal) {
-        // You might want to sync this to Stats too? 
-        // For now, dashboard just reads it from userProfile
-      }
       setToast({ message: "Profile updated successfully" });
     } catch (e) { console.error(e); }
   };
@@ -358,7 +350,7 @@ const App = () => {
       const downloadAnchorNode = document.createElement('a');
       downloadAnchorNode.setAttribute("href", dataStr);
       downloadAnchorNode.setAttribute("download", `zenfocus_backup_${new Date().toISOString().split('T')[0]}.json`);
-      document.body.appendChild(downloadAnchorNode); // required for firefox
+      document.body.appendChild(downloadAnchorNode);
       downloadAnchorNode.click();
       downloadAnchorNode.remove();
       setToast({ message: "Data exported successfully" });
@@ -385,7 +377,6 @@ const App = () => {
               sendNotification("Task Reminder", task.title);
               setToast({ message: `Reminder: ${task.title}` });
               hasChanges = true;
-              // Ideally update backend here too, but for perf we might skip aggressive sync for just notification flag
               return { ...task, notified: true };
             }
           }
@@ -401,15 +392,15 @@ const App = () => {
   return (
     <div className="flex h-[100dvh] font-sans bg-[#0B0C15] text-slate-200 selection:bg-indigo-500/30 overflow-hidden">
       <style>{`
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        .dragging-ghost { pointer-events: none; z-index: 9999; opacity: 0.8; transform: scale(1.05); }
-        @keyframes shimmer { 
-          from { transform: translateX(-150%) skewX(12deg); } 
-          to { transform: translateX(150%) skewX(12deg); } 
-        }
-        .dashed-border { border-style: dashed; }
-      `}</style>
+          .no-scrollbar::-webkit-scrollbar { display: none; }
+          .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+          .dragging-ghost { pointer-events: none; z-index: 9999; opacity: 0.8; transform: scale(1.05); }
+          @keyframes shimmer { 
+            from { transform: translateX(-150%) skewX(12deg); } 
+            to { transform: translateX(150%) skewX(12deg); } 
+          }
+          .dashed-border { border-style: dashed; }
+        `}</style>
 
       {toast && <Toast message={toast.message} onClose={() => setToast(null)} />}
 
@@ -435,9 +426,12 @@ const App = () => {
             </button>
           ))}
         </div>
-        <div className="mt-auto mb-4">
+        <div className="mt-auto mb-4 flex flex-col gap-4 items-center">
+          <button onClick={logout} className="text-slate-500 hover:text-red-400" title="Logout">
+            <LogOut size={20} />
+          </button>
           <button onClick={() => setActiveTab('profile')} className={`h-10 w-10 rounded-full bg-gradient-to-tr from-purple-500 to-indigo-500 flex items-center justify-center text-white font-bold text-xs shadow-md border-2 ${activeTab === 'profile' ? 'border-emerald-400 ring-2 ring-emerald-500/50' : 'border-[#0B0C15]'}`}>
-            {userProfile.name ? userProfile.name.charAt(0) : 'U'}
+            {user.avatar && user.avatar !== 'default' ? <img src={user.avatar} alt="User" className="h-full w-full rounded-full object-cover" /> : (user.name ? user.name.charAt(0) : 'U')}
           </button>
         </div>
       </nav>
@@ -471,9 +465,9 @@ const App = () => {
                     onSessionComplete={incrementPomodoro}
                     pomodoroStats={pomodoroStats}
                     pomodoroHistory={pomodoroHistory}
-                    dailyGoal={userProfile.dailyGoal}
-                    tasks={tasks} // Kanban tasks
-                    checklistItems={checklistItems} // Quick tasks
+                    dailyGoal={user.dailyGoal || 8}
+                    tasks={tasks}
+                    checklistItems={checklistItems}
                   />
                 </div>
               </div>
@@ -571,6 +565,31 @@ const App = () => {
         )}
       </main>
     </div>
+  );
+};
+
+const AppContent = () => {
+  const { user, loading } = useAuth();
+  const [view, setView] = useState('login'); // 'login' or 'register'
+
+  if (loading) return <div className="h-screen flex items-center justify-center bg-[#0B0C15] text-white"><Loader className="animate-spin" size={40} /></div>;
+
+  if (!user) {
+    return view === 'login'
+      ? <Login onSwitchToRegister={() => setView('register')} />
+      : <Register onSwitchToLogin={() => setView('login')} />;
+  }
+
+  return <AuthenticatedApp />;
+};
+
+const App = () => {
+  return (
+    <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </GoogleOAuthProvider>
   );
 };
 
