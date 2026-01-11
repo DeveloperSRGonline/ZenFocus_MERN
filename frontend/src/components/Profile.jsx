@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-import { User, Download, Save, Shield, Volume2, Upload, Trash2, Play, Camera } from 'lucide-react';
+import { User, Download, Save, Shield, Volume2, Upload, Trash2, Play, Camera, Pen, X } from 'lucide-react';
 import { saveCustomSound, deleteCustomSound, getCustomSound, saveProfilePicture, getProfilePicture } from '../utils/helpers';
 
 const Profile = ({ profile, onUpdateProfile, onExportData }) => {
@@ -13,7 +13,8 @@ const Profile = ({ profile, onUpdateProfile, onExportData }) => {
     const [isExporting, setIsExporting] = useState(false);
     const [customSound, setCustomSound] = useState(null);
     const [isPlaying, setIsPlaying] = useState(false);
-
+    const [profilePic, setProfilePic] = useState(null);
+    const [isEditing, setIsEditing] = useState(false);
 
     React.useEffect(() => {
         getCustomSound().then(file => {
@@ -23,8 +24,6 @@ const Profile = ({ profile, onUpdateProfile, onExportData }) => {
             if (file) setProfilePic(file);
         });
     }, []);
-
-    const [profilePic, setProfilePic] = useState(null);
 
     const handleProfilePicUpload = async (e) => {
         const file = e.target.files[0];
@@ -85,136 +84,134 @@ const Profile = ({ profile, onUpdateProfile, onExportData }) => {
     };
 
     return (
-        <div className="h-full overflow-y-auto p-4 md:p-8 custom-scrollbar">
-            <div className="max-w-2xl mx-auto space-y-8">
+        <div className="h-full overflow-y-auto p-4 md:p-8 custom-scrollbar pb-24 md:pb-8">
+            <div className="max-w-2xl mx-auto space-y-6">
 
-                {/* Header */}
+                <div className="grid grid-cols-[100px_1fr] gap-6 items-center bg-[#1A1A1A] p-6 rounded-2xl border border-[#333333] shadow-lg relative">
 
-                <div className="text-center mb-12 relative">
-                    <div className="h-24 w-24 mx-auto rounded-full shadow-2xl mb-4 border-4 border-[#0B0C15] relative group overflow-hidden bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center">
+                    <div className="h-24 w-24 rounded-full border-2 border-white/20 relative group overflow-hidden bg-[#0A0A0A] flex items-center justify-center shadow-inner">
                         {profilePic ? (
                             <img src={URL.createObjectURL(profilePic)} alt="Profile" className="w-full h-full object-cover" />
                         ) : (
                             <span className="text-4xl text-white font-bold">{formData.name.charAt(0) || 'U'}</span>
                         )}
 
-                        <label className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                            <Camera className="text-white drop-shadow-lg" size={24} />
+                        <label className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                            <Camera className="text-white" size={24} />
                             <input type="file" accept="image/*" onChange={handleProfilePicUpload} className="hidden" />
                         </label>
                     </div>
-                    <h2 className="text-3xl font-bold text-white mb-2">{formData.name || 'User'}</h2>
-                    <p className="text-slate-400">{formData.bio || 'No bio yet'}</p>
-                </div>
-
-                {/* Settings Form */}
-                <div className="bg-[#151621] rounded-2xl p-8 border border-slate-800 shadow-xl relative overflow-hidden">
-                    <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-blue-500 to-indigo-500" />
-                    <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-                        <User className="text-indigo-400" /> Profile Settings
-                    </h3>
-
-                    <form onSubmit={handleSubmit} className="space-y-6">
-                        <div>
-                            <label className="block text-slate-400 text-sm font-bold mb-2">Display Name</label>
-                            <input
-                                type="text"
-                                value={formData.name}
-                                onChange={e => setFormData({ ...formData, name: e.target.value })}
-                                className="w-full bg-[#0B0C15] border border-slate-700 rounded-lg p-3 text-white focus:outline-none focus:border-indigo-500 transition-colors"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-slate-400 text-sm font-bold mb-2">Bio / Mantra</label>
-                            <textarea
-                                value={formData.bio}
-                                onChange={e => setFormData({ ...formData, bio: e.target.value })}
-                                className="w-full bg-[#0B0C15] border border-slate-700 rounded-lg p-3 text-white focus:outline-none focus:border-indigo-500 transition-colors h-24 resize-none"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-slate-400 text-sm font-bold mb-2">Daily Pomodoro Goal</label>
-                            <div className="flex items-center gap-4">
-                                <input
-                                    type="range"
-                                    min="1" max="20"
-                                    value={formData.dailyGoal}
-                                    onChange={e => setFormData({ ...formData, dailyGoal: parseInt(e.target.value) })}
-                                    className="flex-1 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"
-                                />
-                                <span className="text-indigo-400 font-mono font-bold text-xl w-8 text-center">{formData.dailyGoal}</span>
-                            </div>
-                        </div>
-
-                        <div className="pt-4 flex justify-end">
-                            <button type="submit" className="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-2 rounded-lg font-bold flex items-center gap-2 transition-all">
-                                <Save size={18} /> Save Changes
+                    <div>
+                        <div className="flex items-center gap-4 mb-1">
+                            <h2 className="text-2xl md:text-3xl font-bold text-white">{formData.name || 'User'}</h2>
+                            <button
+                                onClick={() => setIsEditing(!isEditing)}
+                                className="text-gray-500 hover:text-white p-2 rounded-lg hover:bg-[#333333] transition-all"
+                                title="Edit Profile"
+                            >
+                                <Pen size={16} />
                             </button>
                         </div>
-                    </form>
+                        <p className="text-gray-400 text-sm md:text-base">{formData.bio || 'Add a bio to stay motivated'}</p>
+                    </div>
                 </div>
 
-                {/* Sound Settings */}
-                <div className="bg-[#151621] rounded-2xl p-8 border border-slate-800 shadow-xl relative overflow-hidden">
-                    <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-pink-500 to-rose-500" />
-                    <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-                        <Volume2 className="text-rose-400" /> Timer Sound
-                    </h3>
-
-                    <div className="flex flex-col md:flex-row items-center gap-6">
-                        <div className="flex-1">
-                            <p className="text-slate-400 text-sm mb-4">
-                                Upload a custom sound to play when the timer finishes. <br />
-                                <span className="text-xs text-slate-500">(Max 2MB, MP3/WAV supported)</span>
-                            </p>
-
-                            {!customSound ? (
-                                <div className="mt-2">
-                                    <label className="cursor-pointer bg-[#0B0C15] hover:bg-slate-800 border border-slate-700 border-dashed text-slate-400 px-4 py-8 rounded-lg flex flex-col items-center justify-center gap-2 transition-all hover:border-rose-500/50">
-                                        <Upload size={24} className="mb-1" />
-                                        <span className="text-sm font-bold">Click to upload sound</span>
-                                        <input type="file" accept="audio/*" onChange={handleFileUpload} className="hidden" />
-                                    </label>
-                                </div>
-                            ) : (
-                                <div className="bg-[#0B0C15] p-4 rounded-lg border border-slate-800 flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <div className="h-10 w-10 bg-rose-500/10 rounded-full flex items-center justify-center text-rose-400">
-                                            <Volume2 size={20} />
-                                        </div>
-                                        <div>
-                                            <div className="text-sm font-bold text-white">Custom Sound Active</div>
-                                            <div className="text-xs text-slate-500">{(customSound.size / 1024).toFixed(1)} KB</div>
-                                        </div>
-                                    </div>
-                                    <div className="flex gap-2">
-                                        <button onClick={previewSound} disabled={isPlaying} className="p-2 hover:bg-indigo-500/20 rounded text-indigo-400 transition-colors" title="Preview">
-                                            <Play size={18} className={isPlaying ? "animate-pulse" : ""} />
-                                        </button>
-                                        <button onClick={handleRemoveSound} className="p-2 hover:bg-red-500/20 rounded text-red-400 transition-colors" title="Remove">
-                                            <Trash2 size={18} />
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
+                {/* Edit Profile Form */}
+                {/* Edit Profile Form */}
+                {isEditing && (
+                    <div className="bg-[#1A1A1A] rounded-2xl p-6 border border-[#333333] shadow-lg animate-in fade-in slide-in-from-top-4 duration-300">
+                        <div className="flex items-center gap-2 mb-6">
+                            <User className="text-white" size={20} />
+                            <h3 className="text-lg font-bold text-white">Edit Details</h3>
                         </div>
+
+                        <form onSubmit={(e) => { handleSubmit(e); setIsEditing(false); }} className="space-y-6">
+                            <div>
+                                <label className="block text-gray-400 text-xs font-bold uppercase tracking-wider mb-2">Display Name</label>
+                                <input
+                                    type="text"
+                                    value={formData.name}
+                                    onChange={e => setFormData({ ...formData, name: e.target.value })}
+                                    className="w-full bg-[#0A0A0A] border border-[#333333] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-white/50 focus:ring-1 focus:ring-white/20 transition-colors"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-gray-400 text-xs font-bold uppercase tracking-wider mb-2">Bio / Mantra</label>
+                                <textarea
+                                    value={formData.bio}
+                                    onChange={e => setFormData({ ...formData, bio: e.target.value })}
+                                    className="w-full bg-[#0A0A0A] border border-[#333333] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-white/50 focus:ring-1 focus:ring-white/20 transition-colors h-24 resize-none"
+                                />
+                            </div>
+
+                            <div className="pt-2 flex gap-3">
+                                <button type="button" onClick={() => setIsEditing(false)} className="px-6 py-3.5 rounded-xl font-bold text-gray-400 hover:text-white border border-transparent hover:border-[#333333] transition-colors">
+                                    Cancel
+                                </button>
+                                <button type="submit" className="flex-1 bg-white hover:bg-gray-100 text-black px-6 py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-md active:scale-[0.98]">
+                                    <Save size={18} /> Save Changes
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                )}
+
+                {/* Sound Settings */}
+                <div className="bg-[#1A1A1A] rounded-2xl p-6 border border-[#333333] shadow-lg">
+                    <div className="flex items-center gap-2 mb-4">
+                        <Volume2 className="text-white" size={20} />
+                        <h3 className="text-lg font-bold text-white">Timer Sound</h3>
+                    </div>
+
+                    <div className="flex flex-col gap-4">
+                        <p className="text-gray-400 text-sm">
+                            Custom sound for timer completion <span className="text-gray-600">(Max 2MB)</span>
+                        </p>
+
+                        {!customSound ? (
+                            <label className="cursor-pointer bg-[#0A0A0A] hover:bg-[#151515] border border-[#333333] border-dashed text-gray-400 px-4 py-8 rounded-xl flex flex-col items-center justify-center gap-2 transition-all">
+                                <Upload size={24} className="mb-1 text-gray-500" />
+                                <span className="text-sm font-bold text-gray-300">Upload Custom Sound</span>
+                                <input type="file" accept="audio/*" onChange={handleFileUpload} className="hidden" />
+                            </label>
+                        ) : (
+                            <div className="bg-[#0A0A0A] p-4 rounded-xl border border-[#333333] flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="h-10 w-10 bg-[#333333] rounded-full flex items-center justify-center text-white">
+                                        <Volume2 size={20} />
+                                    </div>
+                                    <div>
+                                        <div className="text-sm font-bold text-white">Custom Sound Active</div>
+                                        <div className="text-xs text-gray-500">{(customSound.size / 1024).toFixed(1)} KB</div>
+                                    </div>
+                                </div>
+                                <div className="flex gap-2">
+                                    <button onClick={previewSound} disabled={isPlaying} className="p-2.5 hover:bg-white/10 rounded-lg text-white transition-colors border border-transparent hover:border-white/20" title="Preview">
+                                        <Play size={18} className={isPlaying ? "animate-pulse" : ""} />
+                                    </button>
+                                    <button onClick={handleRemoveSound} className="p-2.5 hover:bg-red-500/10 rounded-lg text-gray-400 hover:text-red-500 transition-colors border border-transparent hover:border-red-500/20" title="Remove">
+                                        <Trash2 size={18} />
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
 
                 {/* Data Zone */}
-                <div className="bg-[#151621] rounded-2xl p-8 border border-slate-800 shadow-xl md:flex items-center justify-between gap-6">
+                <div className="bg-[#1A1A1A] rounded-2xl p-6 border border-[#333333] shadow-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
                     <div>
-                        <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
-                            <Shield className="text-emerald-400" /> Your Data
+                        <h3 className="text-lg font-bold text-white mb-1 flex items-center gap-2">
+                            <Shield className="text-emerald-500" size={18} /> Your Data
                         </h3>
-                        <p className="text-slate-400 text-sm">
-                            Download a complete copy of your activity history, tasks, and notes in JSON format.
+                        <p className="text-gray-400 text-sm">
+                            Download a full copy of your activity history.
                         </p>
                     </div>
                     <button
                         onClick={handleExport}
                         disabled={isExporting}
-                        className="mt-4 md:mt-0 bg-[#0B0C15] hover:bg-slate-800 border border-slate-700 text-slate-200 px-6 py-3 rounded-lg font-bold flex items-center gap-3 transition-all whitespace-nowrap"
+                        className="w-full md:w-auto bg-[#0A0A0A] hover:bg-[#151515] border border-[#333333] text-gray-200 px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-3 transition-all hover:border-white/30 whitespace-nowrap active:scale-[0.98]"
                     >
                         {isExporting ? (
                             <span className="animate-pulse">Generating...</span>
@@ -226,7 +223,7 @@ const Profile = ({ profile, onUpdateProfile, onExportData }) => {
                     </button>
                 </div>
             </div>
-        </div>
+        </div >
     );
 };
 

@@ -22,12 +22,12 @@ const Login = ({ onSwitchToRegister }) => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-[#0B0C15] text-slate-200 p-4 relative overflow-hidden">
+        <div className="min-h-screen flex items-center justify-center bg-[#0A0A0A] text-slate-200 p-4 relative overflow-hidden">
             {/* Background Elements */}
             <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-indigo-600/20 rounded-full blur-[100px] pointer-events-none"></div>
             <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-purple-600/20 rounded-full blur-[100px] pointer-events-none"></div>
 
-            <div className="w-full max-w-md bg-[#151621] border border-slate-800 rounded-2xl p-8 shadow-2xl relative z-10">
+            <div className="w-full max-w-md bg-[#1A1A1A] border border-[#333333] rounded-2xl p-8 shadow-2xl relative z-10">
                 <div className="text-center mb-8">
                     <h1 className="text-3xl font-bold text-white mb-2">Welcome Back</h1>
                     <p className="text-slate-500">Sign in to continue your focus journey</p>
@@ -50,7 +50,7 @@ const Login = ({ onSwitchToRegister }) => {
                                 required
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
-                                className="w-full bg-[#0B0C15] border border-slate-700 rounded-xl py-3 pl-10 pr-4 text-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all placeholder:text-slate-600"
+                                className="w-full bg-[#0A0A0A] border border-[#333333] rounded-xl py-3 pl-10 pr-4 text-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all placeholder:text-slate-600"
                                 placeholder="you@example.com"
                             />
                         </div>
@@ -65,7 +65,7 @@ const Login = ({ onSwitchToRegister }) => {
                                 required
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                className="w-full bg-[#0B0C15] border border-slate-700 rounded-xl py-3 pl-10 pr-4 text-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all placeholder:text-slate-600"
+                                className="w-full bg-[#0A0A0A] border border-[#333333] rounded-xl py-3 pl-10 pr-4 text-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all placeholder:text-slate-600"
                                 placeholder="••••••••"
                             />
                         </div>

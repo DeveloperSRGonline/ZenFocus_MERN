@@ -2,14 +2,36 @@ import React, { useState, useEffect } from 'react';
 import { Play, Pause, RotateCcw, Volume2, VolumeX, Activity, Settings, X, Coffee, Brain, Zap } from 'lucide-react';
 import { AudioEngine, formatTime } from '../utils/helpers';
 
-const Timer = ({ onNotify, onSessionComplete, pomodoroStats, pomodoroHistory = [], dailyGoal, tasks = [], checklistItems = [] }) => {
+const Timer = ({
+  onNotify,
+  onSessionComplete,
+  pomodoroStats,
+  pomodoroHistory = [],
+  dailyGoal,
+  tasks = [],
+  checklistItems = [],
+  timerDurations: propTimerDurations,
+  onUpdateTimerDurations,
+  userProfile
+}) => {
   const [mode, setMode] = useState('work');
-  const [durations, setDurations] = useState({ work: 25, shortBreak: 5, longBreak: 15 });
-  const [timeLeft, setTimeLeft] = useState(25 * 60);
+  const [durations, setDurations] = useState(propTimerDurations || { work: 25, shortBreak: 5, longBreak: 15 });
+  const [timeLeft, setTimeLeft] = useState((propTimerDurations?.work || 25) * 60);
   const [isActive, setIsActive] = useState(false);
   const [isSoundOn, setIsSoundOn] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [tempDurations, setTempDurations] = useState({ work: 25, shortBreak: 5, longBreak: 15 });
+  const [tempDurations, setTempDurations] = useState(propTimerDurations || { work: 25, shortBreak: 5, longBreak: 15 });
+
+  // Sync with prop changes
+  useEffect(() => {
+    if (propTimerDurations) {
+      setDurations(propTimerDurations);
+      setTempDurations(propTimerDurations);
+      if (!isActive) {
+        setTimeLeft(propTimerDurations[mode] * 60);
+      }
+    }
+  }, [propTimerDurations, mode, isActive]);
 
   // Derived Stats
   const { weeklyData, todayCount } = React.useMemo(() => {
@@ -95,6 +117,9 @@ const Timer = ({ onNotify, onSessionComplete, pomodoroStats, pomodoroHistory = [
     e.preventDefault();
     const newDurations = { ...tempDurations };
     setDurations(newDurations);
+    if (onUpdateTimerDurations) {
+      onUpdateTimerDurations(newDurations);
+    }
     if (!isActive) {
       setTimeLeft(newDurations[mode] * 60);
     }
@@ -102,25 +127,29 @@ const Timer = ({ onNotify, onSessionComplete, pomodoroStats, pomodoroHistory = [
   };
 
   const modeConfig = {
-    work: { label: 'Focus', color: 'text-indigo-400', bg: 'from-indigo-600 to-purple-700', icon: Brain },
-    shortBreak: { label: 'Short Break', color: 'text-emerald-400', bg: 'from-emerald-500 to-teal-600', icon: Coffee },
-    longBreak: { label: 'Long Break', color: 'text-sky-400', bg: 'from-sky-500 to-blue-600', icon: Zap },
+    work: { label: 'Focus', color: 'text-white', bg: 'from-white to-gray-100', icon: Brain },
+    shortBreak: { label: 'Short Break', color: 'text-white', bg: 'from-gray-200 to-gray-300', icon: Coffee },
+    longBreak: { label: 'Long Break', color: 'text-white', bg: 'from-gray-300 to-gray-400', icon: Zap },
   };
 
   return (
     <div className="w-full flex flex-col gap-6 pb-20 md:pb-0">
       <div className="text-center mb-6 animate-in slide-in-from-top-10 duration-700">
-        <h1 className="text-3xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-300 via-indigo-300 to-purple-300 mb-4 drop-shadow-[0_0_15px_rgba(99,102,241,0.5)]">
-          "Main apne past ka gulaam nahi hoon."
+        <h1 className="text-3xl md:text-5xl font-bold text-white mb-4 drop-shadow-lg px-4">
+          {userProfile?.mainQuote || '"Main apne past ka gulaam nahi hoon."'}
         </h1>
-        <p className="text-slate-400 text-sm md:text-base tracking-wide font-medium">
-          Stop thinking. Start stacking actions. <span className="text-indigo-400">Action kills fear.</span>
-        </p>
+        <div className="text-gray-400 text-sm md:text-base tracking-wide font-medium px-4">
+          {userProfile?.subQuote ? (
+            <span dangerouslySetInnerHTML={{ __html: userProfile.subQuote }} />
+          ) : (
+            <>Stop thinking. Start stacking actions. <span className="text-white">Action kills fear.</span></>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="flex flex-col items-center justify-between p-6 md:p-8 space-y-8 bg-[#151621] rounded-2xl shadow-xl border border-slate-800/50 relative overflow-hidden min-h-[400px]">
-          <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500" />
+        <div className="flex flex-col items-center justify-between p-6 md:p-8 space-y-8 bg-[#1A1A1A] rounded-2xl shadow-xl border border-[#333333] relative overflow-hidden min-h-[400px]">
+          <div className="absolute top-0 inset-x-0 h-1 bg-white" />
 
           {/* Header Actions */}
           <div className="w-full flex justify-between items-center relative z-10">
@@ -174,14 +203,14 @@ const Timer = ({ onNotify, onSessionComplete, pomodoroStats, pomodoroHistory = [
                 }
                 setIsActive(!isActive);
               }}
-              className={`p-6 rounded-full shadow-lg transition-all transform hover:scale-105 active:scale-95 ${isActive ? 'bg-amber-500/10 text-amber-400 ring-1 ring-amber-500/50' : `bg-gradient-to-br ${modeConfig[mode].bg} text-white hover:shadow-lg hover:shadow-indigo-500/25`}`}
+              className={`p-6 rounded-full shadow-lg transition-all transform hover:scale-105 active:scale-95 ${isActive ? 'bg-amber-500/10 text-amber-400 ring-1 ring-amber-500/50' : `bg-gradient-to-br ${modeConfig[mode].bg} text-black hover:shadow-lg hover:shadow-indigo-500/25`}`}
             >
               {isActive ? <Pause size={32} fill="currentColor" /> : <Play size={32} fill="currentColor" />}
             </button>
 
             <button
               onClick={() => { setIsActive(false); AudioEngine.toggleNoise(false); setIsSoundOn(false); setTimeLeft(durations[mode] * 60); }}
-              className="p-4 rounded-full bg-[#0B0C15] text-slate-400 hover:text-white border border-slate-700 hover:border-slate-500 transition-all"
+              className="p-4 rounded-full bg-[#0A0A0A] text-gray-400 hover:text-white border border-[#333333] hover:border-white/30 transition-all"
             >
               <RotateCcw size={20} />
             </button>
@@ -189,10 +218,10 @@ const Timer = ({ onNotify, onSessionComplete, pomodoroStats, pomodoroHistory = [
 
           {/* Settings Modal */}
           {showSettings && (
-            <div className="absolute inset-0 z-50 bg-[#151621]/95 backdrop-blur-sm flex flex-col p-6 animate-in fade-in duration-200 overflow-hidden">
+            <div className="absolute inset-0 z-50 bg-[#1A1A1A]/95 backdrop-blur-sm flex flex-col p-6 animate-in fade-in duration-200 overflow-hidden">
               <div className="flex justify-between items-center mb-6 shrink-0">
                 <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                  <Settings size={18} className="text-indigo-400" /> Timer Settings
+                  <Settings size={18} className="text-white" /> Timer Settings
                 </h3>
                 <div className="flex gap-2">
                   {Notification.permission !== 'granted' && (
@@ -238,7 +267,7 @@ const Timer = ({ onNotify, onSessionComplete, pomodoroStats, pomodoroHistory = [
                 </div>
 
                 <div className="pt-2 shrink-0">
-                  <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl transition-colors">
+                  <button type="submit" className="w-full bg-white hover:bg-gray-100 text-black font-bold py-3 rounded-xl transition-colors">
                     Save Changes
                   </button>
                 </div>
@@ -247,59 +276,7 @@ const Timer = ({ onNotify, onSessionComplete, pomodoroStats, pomodoroHistory = [
           )}
         </div>
 
-        <div className="bg-[#151621] rounded-2xl p-6 md:p-8 shadow-xl border border-slate-800/50 flex flex-col relative overflow-hidden">
-          <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500" />
-          <h3 className="text-xl font-bold text-slate-200 mb-6 flex items-center gap-2">
-            <Activity className="text-emerald-400" /> Activity
-          </h3>
 
-          <div className="space-y-6 flex-1 flex flex-col">
-            {/* Task Pie Chart Section */}
-            <div className="flex items-center justify-around gap-4 bg-[#0B0C15] p-4 rounded-xl border border-slate-800/50">
-              <PieChart percent={taskStats.percent} />
-              <div className="flex flex-col gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
-                  <div>
-                    <div className="text-xl font-bold text-white leading-none">{taskStats.totalDone}</div>
-                    <div className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Completed</div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="h-2 w-2 rounded-full bg-slate-600"></div>
-                  <div>
-                    <div className="text-xl font-bold text-slate-400 leading-none">{taskStats.totalTodo}</div>
-                    <div className="text-[10px] text-slate-600 uppercase font-bold tracking-wider">Remaining</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Weekly Focus Graph - Simplified Vertical Bar Chart */}
-            <div className="flex-1 flex flex-col justify-end min-h-[120px]">
-              <div className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-2 flex items-center gap-2">
-                <Activity size={12} /> Weekly Focus
-              </div>
-              <div className="flex items-end justify-between h-full gap-2 border-b border-slate-800 pb-2">
-                {weeklyData.map((d, i) => (
-                  <div key={i} className="flex-1 flex flex-col justify-end gap-1 h-full group relative cursor-pointer">
-                    {/* Tooltip */}
-                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 bg-slate-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-20 pointer-events-none border border-slate-700">
-                      {d.count}
-                    </div>
-                    <div
-                      style={{ height: `${d.height}%` }}
-                      className={`w-full rounded-t-sm transition-all duration-500 ${d.label === ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][new Date().getDay()] ? 'bg-gradient-to-t from-indigo-500 to-purple-500' : 'bg-slate-700 group-hover:bg-slate-600'}`}
-                    />
-                  </div>
-                ))}
-              </div>
-              <div className="flex justify-between text-[8px] text-slate-600 mt-1 font-mono uppercase">
-                {weeklyData.map((d, i) => <span key={i} className="flex-1 text-center">{d.label}</span>)}
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );

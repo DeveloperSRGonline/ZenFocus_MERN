@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Lightbulb, Trash2 } from 'lucide-react';
+import { Lightbulb, Send, Trash2 } from 'lucide-react';
 
 const IdeaVault = ({ ideas, addIdea, deleteIdea }) => {
   const [text, setText] = useState("");
@@ -11,52 +11,70 @@ const IdeaVault = ({ ideas, addIdea, deleteIdea }) => {
   };
 
   return (
-    <div className="h-full flex flex-col md:flex-row gap-6 animate-in fade-in zoom-in duration-300 pb-20 md:pb-0">
-      <div className="w-full md:w-1/3 bg-[#151621] p-6 rounded-2xl border border-slate-800/50 shadow-xl flex flex-col">
-        <div className="mb-6 border-l-4 border-amber-500 pl-3">
-          <h2 className="text-xl font-bold text-white">Idea Vault</h2>
-          <p className="text-xs text-slate-500">Capture the spark. Save it for later.</p>
+    <div className="h-full flex flex-col gap-4 animate-fade-in-up pb-20 md:pb-0">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <div className="p-2.5 bg-white/10 rounded-xl border border-white/20">
+          <Lightbulb className="text-white" size={22} />
         </div>
-        
-        <div className="flex-1 flex flex-col gap-4">
+        <div>
+          <h2 className="text-xl font-bold text-white">Idea Vault</h2>
+          <p className="text-sm text-gray-500">Capture the spark, save it for later</p>
+        </div>
+      </div>
+
+      {/* Input Card */}
+      <div className="bg-[#1A1A1A] rounded-2xl shadow-md border border-[#333333] overflow-hidden transition-all hover:border-white/30 p-3">
+        <div className="flex items-end gap-3">
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAdd(); }}}
+            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAdd(); } }}
             placeholder="New app idea, business concept, or creative spark..."
-            className="flex-1 w-full bg-[#0B0C15] border border-slate-700 rounded-lg p-4 text-sm text-white focus:border-amber-500 focus:outline-none resize-none placeholder-slate-600 custom-scrollbar no-scrollbar leading-relaxed"
+            className="flex-1 bg-transparent border-none p-2 text-white placeholder-gray-600 focus:outline-none resize-none text-sm min-h-[60px] max-h-[150px]"
+            rows="2"
           />
-          <button 
+          <button
             onClick={handleAdd}
-            className="w-full py-3 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-lg shadow-lg shadow-amber-900/20 transition-all transform hover:scale-[1.02] active:scale-[0.98] uppercase tracking-wider text-sm flex items-center justify-center gap-2"
+            disabled={!text.trim()}
+            className="p-3 rounded-xl bg-white hover:bg-gray-100 text-black transition-all transform hover:scale-105 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 shadow-md shrink-0"
           >
-            <Lightbulb size={16} /> Save Idea
+            <Send size={18} />
           </button>
         </div>
       </div>
 
-      <div className="flex-1 bg-[#151621] p-6 rounded-2xl border border-slate-800/50 shadow-xl flex flex-col overflow-hidden">
-        <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4">Saved Ideas</h3>
-        <div className="flex-1 overflow-y-auto custom-scrollbar no-scrollbar space-y-3">
+      {/* Ideas List */}
+      <div className="flex-1 overflow-hidden flex flex-col">
+        <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2.5 pr-1">
           {ideas.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-slate-600 opacity-50">
-              <Lightbulb size={64} strokeWidth={1} className="mb-4"/>
-              <p className="text-sm">No ideas saved yet.</p>
+            <div className="h-full flex flex-col items-center justify-center text-gray-600 py-16">
+              <div className="p-4 bg-white/5 rounded-full mb-3">
+                <Lightbulb size={40} strokeWidth={1.5} className="text-gray-700" />
+              </div>
+              <p className="text-sm font-medium">No ideas saved yet</p>
+              <p className="text-xs text-gray-700 mt-1">Start capturing your brilliant thoughts!</p>
             </div>
           ) : (
-            ideas.slice().map((idea) => (
-              <div key={idea._id} className="bg-[#0B0C15] p-4 rounded-xl border border-slate-800 group hover:border-amber-500/30 transition-all">
-                <div className="flex justify-between items-start gap-4">
-                  <p className="text-slate-200 text-sm whitespace-pre-wrap leading-relaxed font-medium">{idea.text}</p>
-                  <button 
+            ideas.slice().reverse().map((idea) => (
+              <div
+                key={idea._id}
+                className="bg-[#1A1A1A] rounded-xl p-3.5 border border-[#333333] group hover:border-white/30 hover:shadow-md transition-all card-hover animate-slide-in-left"
+              >
+                <div className="flex justify-between items-start gap-3">
+                  <p className="text-gray-300 text-sm leading-relaxed flex-1 font-medium">{idea.text}</p>
+                  <button
                     onClick={() => deleteIdea(idea._id)}
-                    className="text-slate-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
+                    className="text-gray-600 hover:text-white transition-colors shrink-0 p-1 hover:bg-white/10 rounded"
                   >
-                    <Trash2 size={16} />
+                    <Trash2 size={14} />
                   </button>
                 </div>
-                <div className="text-[10px] text-slate-600 mt-2 font-mono text-right">
-                  {new Date(idea.date).toLocaleDateString()}
+                <div className="flex items-center gap-2 mt-2">
+                  <div className="h-1 w-1 rounded-full bg-white"></div>
+                  <div className="text-[10px] text-gray-600 font-medium">
+                    {new Date(idea.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </div>
                 </div>
               </div>
             ))
